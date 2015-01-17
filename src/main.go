@@ -9,6 +9,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"net/http"
+	"strconv"
 )
 
 func FitSize(src image.Image, w, h int) (image.Image, error) {
@@ -50,7 +51,6 @@ func GetImage(url string) (string, image.Image) {
 	} else {
 		panic("Content-Type Error: " + ctype)
 	}
-	img, _ = FitSize(img, 360, 200)
 	return ctype, img
 }
 
@@ -66,19 +66,28 @@ func tranimg(w http.ResponseWriter, r *http.Request) {
 
 	r.ParseForm()
 	url := r.Form.Get("url")
+	width, err := strconv.ParseInt(r.Form.Get("width"), 10, 32)
+	if err != nil || width <= 0 {
+		width = 360 // 默认值
+	}
+	height, err := strconv.ParseInt(r.Form.Get("height"), 10, 32)
+	if err != nil || height <= 0 {
+		height = 200 // 默认值
+	}
 	if url != "" {
 		fmt.Println("image: " + url)
 		_, m := GetImage(url)
+		m, _ = FitSize(m, int(width), int(height))
 		w.Header().Add("Content-Type", "image/png")
 		png.Encode(w, m)
 	} else {
-		w.Write([]byte("image url is necessary, example: ?url=http://img3.douban.com/lpic/s6037735.jpg&width=360&height=200"))
+		w.Write([]byte("image url is necessary, example: /?url=http://img3.douban.com/lpic/s6037735.jpg&width=360&height=200"))
 	}
 }
 
 func main() {
+	addr := ":9999"
 	http.HandleFunc("/", tranimg)
-
-	http.ListenAndServe(":9999", nil)
-	fmt.Printf("ok\n")
+	fmt.Printf("Listen at %s\n", addr)
+	http.ListenAndServe(addr, nil)
 }
